@@ -3,4 +3,10 @@
     <color name="colorPrimary">#6200EE</color>
     <color name="colorPrimaryDark">#3700B3</color>
     <color name="colorAccent">#03DAC5</color>
+    <color name="success">#379c15</color>
+    <color name="failure">#d70b23</color>
+    <color name="waveform">#cea017</color>
+    <color name="portraitBackground">#FFFFFF</color>
+    <color name="progressCircle">#cea017</color>
+    <color name="instructionalText">#000000</color>
 </resources>
