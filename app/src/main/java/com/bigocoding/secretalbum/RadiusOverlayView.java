@@ -20,7 +20,7 @@ import android.os.Build;
 import android.util.AttributeSet;
 import android.widget.LinearLayout;
 
-//import com.google.android.gms.vision.face.Face;
+import com.google.android.gms.vision.face.Face;
 
 import java.util.ArrayList;
 import java.util.Vector;
@@ -111,42 +111,45 @@ class RadiusOverlayView extends LinearLayout {
     }
 
     private void setStyle(TypedArray attr){
-        mDrawWaveform = true;
+        String type = attr.getString(R.styleable.RadiusOverlayView_view_type);
+        if(type.equals("voice")) {
+            mDrawWaveform = true;
 
-        for (int i = 0; i < mNumberOfWaves; i++) {
-            float multiplier = Math.min(1.0f, (((1.0f - (((float) i) / ((float) mNumberOfWaves))) / 3.0f) * 2.0f) + 0.33333334f);
-            Paint p;
-            if (i == 0) {
-                p = new Paint(1);
-                p.setColor(mWaveColor);
-                p.setStrokeWidth(10);
-                p.setStyle(Paint.Style.STROKE);
-                mWaveformLinePaints.add(p);
-            } else {
-                p = new Paint(1);
+            for (int i = 0; i < mNumberOfWaves; i++) {
+                float multiplier = Math.min(1.0f, (((1.0f - (((float) i) / ((float) mNumberOfWaves))) / 3.0f) * 2.0f) + 0.33333334f);
+                Paint p;
+                if (i == 0) {
+                    p = new Paint(1);
+                    p.setColor(mWaveColor);
+                    p.setStrokeWidth(10);
+                    p.setStyle(Paint.Style.STROKE);
+                    mWaveformLinePaints.add(p);
+                } else {
+                    p = new Paint(1);
 //                    Log.v("Color", BuildConfig.FLAVOR + ((int) ((((double) (1.0f * multiplier)) * 0.7d) * 255.0d)));
-                p.setColor(mWaveColor);
-                p.setAlpha((int) ((((double) (1.0f * multiplier)) * 0.8d) * 255.0d));
-                p.setStrokeWidth(3);
-                p.setStyle(Paint.Style.STROKE);
-                mWaveformLinePaints.add(p);
+                    p.setColor(mWaveColor);
+                    p.setAlpha((int) ((((double) (1.0f * multiplier)) * 0.8d) * 255.0d));
+                    p.setStrokeWidth(3);
+                    p.setStyle(Paint.Style.STROKE);
+                    mWaveformLinePaints.add(p);
+                }
             }
+            mWaveformPath = new Path();
         }
-        mWaveformPath = new Path();
         attr.recycle();
     }
 
-//    void setLowLightMode(Boolean lowLightMode) {
-//        if(lowLightMode) {
-//            invertedCirclePaint.setColor(getResources().getColor(R.color.portraitBackgroundLowLight));
-//            textPaint.setColor(getResources().getColor(R.color.instructionalTextLowLight));
-//        } else {
-//            invertedCirclePaint.setColor(getResources().getColor(R.color.portraitBackground));
-//            textPaint.setColor(getResources().getColor(R.color.instructionalText));
-//        }
-//        this.invalidate();
-//
-//    }
+    void setLowLightMode(Boolean lowLightMode) {
+        if(lowLightMode) {
+            invertedCirclePaint.setColor(getResources().getColor(R.color.portraitBackgroundLowLight));
+            textPaint.setColor(getResources().getColor(R.color.instructionalTextLowLight));
+        } else {
+            invertedCirclePaint.setColor(getResources().getColor(R.color.portraitBackground));
+            textPaint.setColor(getResources().getColor(R.color.instructionalText));
+        }
+        this.invalidate();
+
+    }
 
     private void setup() {
 
@@ -179,36 +182,36 @@ class RadiusOverlayView extends LinearLayout {
         textPaint.setColor(getResources().getColor(R.color.instructionalText));
     }
 
-//    public void setPicture(byte[] data) {
-//
-//        if(data == null) {
-//            mPicture = null;
-//            return;
-//        }
-//
-//        Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
-//
-//        Matrix matrix = new Matrix();
-//
-//        // Flip over X axis
-//        matrix.postScale(-1, 1, bitmap.getWidth() / 2f, bitmap.getHeight() / 2f);
-//
-//        // Scale to preview size based off orientation
-//        if (CameraSourcePreview.isPortraitMode(getContext())) {
-//            matrix.postScale( ((float) CameraSourcePreview.childHeight) / bitmap.getWidth(),
-//                    ((float) CameraSourcePreview.childWidth) / bitmap.getHeight());
-//            matrix.postRotate(90);
-//        } else {
-//            matrix.postScale( ((float) CameraSourcePreview.childWidth) / bitmap.getWidth(),
-//                    ((float) CameraSourcePreview.childHeight) / bitmap.getHeight());
-//        }
-//
-//        bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
-//
-//        mPicture = bitmap;
-//
-//        this.invalidate();
-//    }
+    public void setPicture(byte[] data) {
+
+        if(data == null) {
+            mPicture = null;
+            return;
+        }
+
+        Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+
+        Matrix matrix = new Matrix();
+
+        // Flip over X axis
+        matrix.postScale(-1, 1, bitmap.getWidth() / 2f, bitmap.getHeight() / 2f);
+
+        // Scale to preview size based off orientation
+        if (CameraSourcePreview.isPortraitMode(getContext())) {
+            matrix.postScale( ((float) CameraSourcePreview.childHeight) / bitmap.getWidth(),
+                    ((float) CameraSourcePreview.childWidth) / bitmap.getHeight());
+            matrix.postRotate(90);
+        } else {
+            matrix.postScale( ((float) CameraSourcePreview.childWidth) / bitmap.getWidth(),
+                    ((float) CameraSourcePreview.childHeight) / bitmap.getHeight());
+        }
+
+        bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+
+        mPicture = bitmap;
+
+        this.invalidate();
+    }
 
     public RadiusOverlayView(Context context) {
         super(context);
@@ -391,33 +394,33 @@ class RadiusOverlayView extends LinearLayout {
         }
     }
 
-//    public boolean insidePortraitCircle(Activity activity, Face face) {
-//
-//        final float faceX = (float)mViewWidth - (face.getPosition().x + face.getWidth() / 2)
-//                * (float)mViewWidth / (float)CameraSourcePreview.previewWidth;
-//        final float faceY = (face.getPosition().y + face.getHeight() / 2)
-//                * (float)mViewHeight / (float)CameraSourcePreview.previewHeight;
-//
-//        final float radius = circleRadius * 0.7f;
-//
-//        // Face close enough to camera
-//        if(face.getWidth() < (circleRadius/2)
-//                || face.getHeight() < (circleRadius/2)) {
-//            activity.runOnUiThread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    updateDisplayText(getContext().getString(R.string.MOVE_CLOSER));
-//                }
-//            });
-//            return false;
-//        }
-//
-//        // Face inside portrait circle
-//        return (faceX < circleCenterX + radius
-//                && faceX > circleCenterX - radius
-//                && faceY < circleCenterY + radius
-//                && faceY > circleCenterY - radius);
-//    }
+    public boolean insidePortraitCircle(Activity activity, Face face) {
+
+        final float faceX = (float)mViewWidth - (face.getPosition().x + face.getWidth() / 2)
+                * (float)mViewWidth / (float)CameraSourcePreview.previewWidth;
+        final float faceY = (face.getPosition().y + face.getHeight() / 2)
+                * (float)mViewHeight / (float)CameraSourcePreview.previewHeight;
+
+        final float radius = circleRadius * 0.7f;
+
+        // Face close enough to camera
+        if(face.getWidth() < (circleRadius/2)
+                || face.getHeight() < (circleRadius/2)) {
+            activity.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    updateDisplayText(getContext().getString(R.string.MOVE_CLOSER));
+                }
+            });
+            return false;
+        }
+
+        // Face inside portrait circle
+        return (faceX < circleCenterX + radius
+                && faceX > circleCenterX - radius
+                && faceY < circleCenterY + radius
+                && faceY > circleCenterY - radius);
+    }
 
     @Override
     public boolean isInEditMode() {

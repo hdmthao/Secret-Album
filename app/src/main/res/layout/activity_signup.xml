@@ -92,7 +92,7 @@
                 android:layout_gravity="center"
                 android:padding="20dp"
                 android:onClick="onClick_signupassword"
-                android:text="Or Sign Up with password" />
+                android:text="And then register password" />
         </LinearLayout>
 
     </RelativeLayout>

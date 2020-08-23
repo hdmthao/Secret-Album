@@ -5,8 +5,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
+import android.widget.Toast;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
@@ -46,6 +49,29 @@ public class BiometricAssistant {
         mClient.delete(getAbsoluteUrl("/enrollments/" + userId + "/all"), responseHandler);
     }
 
+    public void getAllVoiceEnrollments(String userId, AsyncHttpResponseHandler responseHandler) {
+        mClient.get(getAbsoluteUrl("/enrollments/voice/" + userId), responseHandler);
+    }
+
+    public void getAllFaceEnrollments(String userId, AsyncHttpResponseHandler responseHandler) {
+        mClient.get(getAbsoluteUrl("/enrollments/face/" + userId), responseHandler);
+    }
+
+    public void voiceVerification(String userId, String contentLanguage, String phrase, File recording, AsyncHttpResponseHandler responseHandler) {
+        RequestParams params = new RequestParams();
+        params.put("userId", userId);
+        params.put("contentLanguage", contentLanguage);
+        params.put("phrase", phrase);
+        try {
+            params.put("recording", recording);
+        } catch (FileNotFoundException e) {
+            Log.e(TAG, "FileNotFoundException: " + e.getMessage());
+            responseHandler.sendFailureMessage(200, null, buildJSONFormatMessage().toString().getBytes(), new Throwable());
+            return;
+        }
+        mClient.post(getAbsoluteUrl("/verification/voice"), params, responseHandler);
+    }
+
     public void createVoiceEnrollment(String userId, String contentLanguage, String phrase, File recording, AsyncHttpResponseHandler responseHandler) {
         RequestParams params = new RequestParams();
         params.put("userId", userId);
@@ -62,7 +88,35 @@ public class BiometricAssistant {
         mClient.post(getAbsoluteUrl("/enrollments/voice"), params, responseHandler);
     }
 
-    public void encapsulatedVoiceEnrollment(Activity activity, String userId, String contentLanguage, String phrase, final JsonHttpResponseHandler responseHandler) {
+    public void createFaceEnrollmentWithPhoto(String userId, File photo, AsyncHttpResponseHandler responseHandler) {
+        RequestParams params = new RequestParams();
+        params.put("userId", userId);
+        try {
+            params.put("photo", photo);
+        } catch (FileNotFoundException e) {
+            Log.e(TAG, "FileNotFoundException: " + e.getMessage());
+            responseHandler.sendFailureMessage(200, null, buildJSONFormatMessage().toString().getBytes(), new Throwable());
+            return;
+        }
+
+        mClient.post(getAbsoluteUrl("/enrollments/face"), params, responseHandler);
+    }
+
+    public void faceVerificationWithPhoto(String userId, File photo, AsyncHttpResponseHandler responseHandler) {
+        RequestParams params = new RequestParams();
+        params.put("userId", userId);
+        try {
+            params.put("photo", photo);
+        } catch (FileNotFoundException e) {
+            Log.e(TAG, "FileNotFoundException: " + e.getMessage());
+            responseHandler.sendFailureMessage(200, null, buildJSONFormatMessage().toString().getBytes(), new Throwable());
+            return;
+        }
+
+        mClient.post(getAbsoluteUrl("/verification/face"), params, responseHandler);
+    }
+    public void encapsulatedVoiceEnrollment(Activity activity, String userId, String contentLanguage,
+                                            String phrase, final JsonHttpResponseHandler responseHandler) {
         Intent intent = new Intent(activity, VoiceEnrollment.class);
         Bundle bundle = new Bundle();
         bundle.putString("apiKey", API_KEY);
@@ -77,6 +131,58 @@ public class BiometricAssistant {
         broadcastMessageHandler(activity, responseHandler);
     }
 
+    public void encapsulatedVoiceVerification(Activity activity, String userId, String contentLanguage, String phrase, final JsonHttpResponseHandler responseHandler) {
+        Intent intent = new Intent(activity, VoiceVerification.class);
+        Bundle bundle = new Bundle();
+        bundle.putString("apiKey", API_KEY);
+        bundle.putString("apiToken", API_TOKEN);
+        bundle.putString("userId", userId);
+        bundle.putString("contentLanguage", contentLanguage);
+        bundle.putString("phrase", phrase);
+        intent.putExtras(bundle);
+        activity.startActivity(intent);
+        activity.overridePendingTransition(0, 0);
+
+        broadcastMessageHandler(activity, responseHandler);
+    }
+
+    public void encapsulatedFaceEnrollment(Activity activity, String userId,
+                                           JsonHttpResponseHandler responseHandler) {
+
+        Intent intent = new Intent(activity, FaceEnrollment.class);
+        Bundle bundle = new Bundle();
+        bundle.putString("apiKey", API_KEY);
+        bundle.putString("apiToken", API_TOKEN);
+        bundle.putString("userId", userId);
+        intent.putExtras(bundle);
+        activity.startActivity(intent);
+        activity.overridePendingTransition(0, 0);
+
+        broadcastMessageHandler(activity, responseHandler);
+
+        requestWritePermission(activity);
+    }
+
+    public void encapsulatedFaceVerification(Activity activity, String userId, boolean doLivenessCheck, boolean doLivenessAudioCheck, int livenessChallengeFailsAllowed, int livenessChallengesNeeded, final JsonHttpResponseHandler responseHandler) {
+
+        Intent intent = new Intent(activity, FaceVerification.class);
+        Bundle bundle = new Bundle();
+        bundle.putString("apiKey", API_KEY);
+        bundle.putString("apiToken", API_TOKEN);
+        bundle.putString("userId", userId);
+        bundle.putBoolean("doLivenessCheck", doLivenessCheck);
+        bundle.putBoolean("doLivenessAudioCheck", doLivenessAudioCheck);
+        bundle.putInt("livenessChallengeFailsAllowed", livenessChallengeFailsAllowed);
+        bundle.putInt("livenessChallengesNeeded", livenessChallengesNeeded);
+        bundle.putBoolean("displayPreviewFrame", false);
+        intent.putExtras(bundle);
+        activity.startActivity(intent);
+        activity.overridePendingTransition(0, 0);
+
+        broadcastMessageHandler(activity, responseHandler);
+
+        requestWritePermission(activity);
+    }
     private void broadcastMessageHandler(final Activity activity, final JsonHttpResponseHandler responseHandler) {
         BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
             boolean broadcastTriggered = false;
@@ -104,6 +210,15 @@ public class BiometricAssistant {
         LocalBroadcastManager.getInstance(activity).registerReceiver(mMessageReceiver, intentFilter);
     }
 
+    private void requestWritePermission(Activity activity) {
+        if (!Settings.System.canWrite(activity)) {
+            Toast.makeText(activity, activity.getString(R.string.GRANT_WRITE_PERMISSON), Toast.LENGTH_LONG).show();
+            Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS);
+            intent.setData(Uri.parse("package:" + activity.getPackageName()));
+            activity.startActivity(intent);
+        }
+    }
+
     private JSONObject buildJSONFormatMessage() {
         JSONObject json = new JSONObject();
         try {
@@ -113,4 +228,6 @@ public class BiometricAssistant {
         }
         return json;
     }
+
+
 }

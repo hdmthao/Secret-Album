@@ -38,22 +38,20 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
+    private static final String userId = "usr_5abcb05344d141e398f1489b159d5ae5";
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private static final String[] PERMISSIONS_STORAGE = {
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
-
-    private final String phrase = "Never forget tomorrow is a new day";
-    private final String userId = "usr_5abcb05344d141e398f1489b159d5ae5";
-    private final String contentLanguage = "en-US";
     int PICK_IMAGE_MULTIPLE = 1;
 
-    private BiometricAssistant mBiometricAssistant;
+
     private RecyclerView mRecyclerView;
     private ImageAdapter mImageAdapter;
     private ProgressBar mProgressBar;
@@ -124,8 +122,6 @@ public class MainActivity extends AppCompatActivity {
 
         initComponent();
         populateGridView();
-
-//        mBiometricAssistant = new BiometricAssistant("key_186c7a4a0d0f42e3a6adc06e61339d09", "tok_a4d34a9a28f44841bf083dfd6acbc2a0");
     }
 
     @Override
@@ -163,8 +159,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        ArrayList<Photo> result;
-        result = new ArrayList<>();
+        ArrayList<Uri> mImageUris = new ArrayList<Uri>();
         try {
             if (requestCode == PICK_IMAGE_MULTIPLE && resultCode == RESULT_OK && data != null) {
                 String[] filePathColumn = {MediaStore.Images.Media.DATA};
@@ -179,16 +174,15 @@ public class MainActivity extends AppCompatActivity {
                     imageEncoded = cursor.getString(columnIndex);
                     cursor.close();
                     String name = mImageUri.toString().substring(mImageUri.toString().length() - 4, mImageUri.toString().length() - 1);
-                    result.add(new Photo(name, mImageUri));
+                    mImageUris.add(mImageUri);
                 } else {
                     if (data.getClipData() != null) {
                         ClipData mClipData = data.getClipData();
-                        ArrayList<Uri> mArrayUri = new ArrayList<Uri>();
                         for (int i = 0; i < mClipData.getItemCount(); i++) {
 
                             ClipData.Item item = mClipData.getItemAt(i);
                             Uri uri = item.getUri();
-                            mArrayUri.add(uri);
+                            mImageUris.add(uri);
                             Cursor cursor = getContentResolver().query(uri, filePathColumn, null, null, null);
                             cursor.moveToFirst();
 
@@ -196,12 +190,6 @@ public class MainActivity extends AppCompatActivity {
                             imageEncoded = cursor.getString(columnIndex);
                             imagesEncodedList.add(imageEncoded);
                             cursor.close();
-
-                        }
-
-                        for (Uri uri : mArrayUri) {
-                            String name = System.currentTimeMillis() + "." + getFileExtension(uri);
-                            result.add(new Photo(name, uri));
                         }
                     }
                 }
@@ -213,7 +201,7 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Something went wrong", Toast.LENGTH_LONG)
                     .show();
         }
-        uploadImageToFirebase(result);
+        uploadImageToFirebase(mImageUris);
         super.onActivityResult(requestCode, resultCode, data);
     }
 
@@ -223,26 +211,26 @@ public class MainActivity extends AppCompatActivity {
         return mime.getExtensionFromMimeType(cR.getType(uri));
     }
 
-    private void uploadImageToFirebase(ArrayList<Photo> result) {
+    private void uploadImageToFirebase(ArrayList<Uri> result) {
         mProgressBar.setVisibility(View.VISIBLE);
-        for (final Photo photo : result) {
-            final String name = System.currentTimeMillis() + '.' + getFileExtension(photo.get_uri());
+        for (final Uri imageUri : result) {
+            final String name = System.currentTimeMillis() + '.' + getFileExtension(imageUri);
             Log.d(TAG, "Uploading " + name);
             mUploadBar.setVisibility(View.VISIBLE);
             StorageReference fileReference = mStorageRef.child(name);
-            mUploadTask = fileReference.putFile(photo.get_uri())
+            mUploadTask = fileReference.putFile(imageUri)
                     .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
                         @Override
                         public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-//                            Toast.makeText(MainActivity.this, "Upload complete", Toast.LENGTH_LONG).show();
                             final String uploadId = mDatabaseRef.push().getKey();
-                            final Task<Uri> task = taskSnapshot.getMetadata().getReference().getDownloadUrl();
+                            final Task<Uri> task = Objects.requireNonNull(taskSnapshot.getMetadata()).getReference().getDownloadUrl();
                             task.addOnSuccessListener(new OnSuccessListener<Uri>() {
                                 @Override
                                 public void onSuccess(Uri uri) {
                                     String photoLink = uri.toString();
                                     Upload upload = new Upload(name, photoLink);
                                     Log.d(TAG, photoLink);
+                                    assert uploadId != null;
                                     mDatabaseRef.child(uploadId).setValue(upload);
                                 }
                             });
@@ -268,43 +256,5 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         // super.onBackPressed(); // Comment this super call to avoid calling finish() or fragmentmanager's backstack pop operation.
-    }
-
-    public void encapsulatedVoiceEnrollment(View view) {
-        mBiometricAssistant.encapsulatedVoiceEnrollment(this, userId, contentLanguage, phrase, new JsonHttpResponseHandler() {
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                System.out.println("encapsulatedVoiceEnrollment onSuccess Result : " + response.toString());
-            }
-
-            @Override
-            public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
-                checkResponse(errorResponse);
-                System.out.println("encapsulatedVoiceEnrollment onFailure Result : " + errorResponse.toString());
-            }
-        });
-    }
-
-    public void checkResponse(JSONObject response) {
-        try {
-            if (response.getString("responseCode").equals("IFVD")
-                    || response.getString("responseCode").equals("ACLR")
-                    || response.getString("responseCode").equals("IFAD")
-                    || response.getString("responseCode").equals("SRNR")
-                    || response.getString("responseCode").equals("UNFD")
-                    || response.getString("responseCode").equals("MISP")
-                    || response.getString("responseCode").equals("DAID")
-                    || response.getString("responseCode").equals("UNAC")
-                    || response.getString("responseCode").equals("CLNE")
-                    || response.getString("responseCode").equals("INCP")
-                    || response.getString("responseCode").equals("NPFC")) {
-//                Toast.makeText(this, "responseCode: " + response.getString("responseCode")
-//                        + ", " + getString(com.voiceit.voiceit2.R.string.CHECK_CODE), Toast.LENGTH_LONG).show();
-                Log.e("MainActivity", "responseCode: " + response.getString("responseCode")
-                        + ", " + getString(com.bigocoding.secretalbum.R.string.CHECK_CODE));
-            }
-        } catch (JSONException e) {
-            Log.d("MainActivity", "JSON exception : " + e.toString());
-        }
     }
 }

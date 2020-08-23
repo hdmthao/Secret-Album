@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <com.bigocoding.secretalbum.RadiusOverlayView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -6,6 +7,12 @@
     android:id="@+id/overlay"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    view_type:view_type="voice"
-    tools:context=".VoiceEnrollment">
+    view_type:view_type="face"
+    tools:context=".FaceEnrollment">
+
+    <com.bigocoding.secretalbum.CameraSourcePreview
+        android:id="@+id/camera_preview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
 </com.bigocoding.secretalbum.RadiusOverlayView>

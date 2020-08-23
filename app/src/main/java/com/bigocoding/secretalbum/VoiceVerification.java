@@ -1,30 +1,33 @@
 package com.bigocoding.secretalbum;
 
-
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.media.MediaRecorder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+
 import android.util.Log;
+
+import java.io.File;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.loopj.android.http.JsonHttpResponseHandler;
 import cz.msebera.android.httpclient.Header;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.File;
-import java.util.Objects;
+public class VoiceVerification extends AppCompatActivity {
 
-
-public class VoiceEnrollment extends AppCompatActivity {
-
-    private static final String TAG = VoiceEnrollment.class.getSimpleName();
+    private final String TAG = VoiceVerification.class.getSimpleName();
+    private Context mContext;
 
     private RadiusOverlayView mOverlay;
     private MediaRecorder mMediaRecorder = null;
@@ -35,11 +38,10 @@ public class VoiceEnrollment extends AppCompatActivity {
     private String mContentLanguage = "";
     private String mPhrase = "";
 
-    private int mEnrollmentCount = 0;
     private final int mNeededEnrollments = 3;
     private int mFailedAttempts = 0;
     private final int mMaxFailedAttempts = 3;
-    private boolean mContinueEnrolling = false;
+    private boolean mContinueVerifying = false;
 
     private boolean displayWaveform = true;
     private final long REFRESH_WAVEFORM_INTERVAL_MS = 30;
@@ -47,26 +49,10 @@ public class VoiceEnrollment extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         setTheme(R.style.AppTheme);
+
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_voice_enrollment);
-
-        loadData();
-
-        // Hide action bar
-        try {
-            Objects.requireNonNull(this.getSupportActionBar()).hide();
-        } catch (NullPointerException e) {
-            Log.d(TAG, "Cannot hide action bar");
-        }
-
-        mOverlay = findViewById(R.id.overlay);
-
-        // Lock orientation
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
-    }
-
-    private void loadData() {
+        // Grab data from parent activity
         Bundle bundle = getIntent().getExtras();
         if(bundle != null) {
             mBiometricAssistant = new BiometricAssistant(bundle.getString("apiKey"), bundle.getString("apiToken"));
@@ -74,56 +60,37 @@ public class VoiceEnrollment extends AppCompatActivity {
             mContentLanguage = bundle.getString("contentLanguage");
             mPhrase = bundle.getString("phrase");
         }
-    }
 
-    private void startEnrollmentFlow() {
-        mContinueEnrolling = true;
-        // Delete enrollments and re-enroll
-        mBiometricAssistant.deleteAllEnrollments(mUserId, new JsonHttpResponseHandler() {
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, JSONObject Response) {
-                recordVoice();
-            }
-            @Override
-            public void onFailure(int statusCode, Header[] headers, Throwable throwable, final JSONObject errorResponse) {
-                if (errorResponse != null) {
-                    try {
-                        mOverlay.updateDisplayText(getString((getResources().getIdentifier(errorResponse.
-                                getString("responseCode"), "string", getPackageName()))));
-                    } catch (JSONException e) {
-                        Log.d(TAG,"JSON exception : " + e.toString());
-                    }
-                    // Wait for 2.0 seconds
-                    timingHandler.postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            exitViewWithJSON("assistant-failure", errorResponse);
-                        }
-                    }, 2000);
-                } else {
-                    Log.e(TAG, "No response from server");
-                    mOverlay.updateDisplayTextAndLock(getString(R.string.CHECK_INTERNET));
-                    // Wait for 2.0 seconds
-                    timingHandler.postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            exitViewWithMessage("assistant-failure","No response from server");
-                        }
-                    }, 2000);
-                }
-            }
-        });
+        // Hide action bar
+        try {
+            this.getSupportActionBar().hide();
+        } catch (NullPointerException e) {
+            Log.d(TAG,"Cannot hide action bar");
+        }
+
+        // Set context
+        mContext = this;
+        // Set content view
+        setContentView(R.layout.activity_voice_verification);
+
+        // Get overlay
+        mOverlay = findViewById(R.id.overlay);
+
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
     }
 
     private void requestHardwarePermissions() {
-        final int ASK_MULTIPLE_PERMISSION_REQUEST_CODE = 1;
-
+        int PERMISSIONS_REQUEST_RECORD_AUDIO = 0;
+        int ASK_MULTIPLE_PERMISSION_REQUEST_CODE = 1;
+        // MY_PERMISSIONS_REQUEST_* is an app-defined int constant. The callback method gets the
+        // result of the request.
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{ Manifest.permission.RECORD_AUDIO},
-                    ASK_MULTIPLE_PERMISSION_REQUEST_CODE);
+                requestPermissions(new String[]{ Manifest.permission.RECORD_AUDIO},
+                        ASK_MULTIPLE_PERMISSION_REQUEST_CODE);
         } else {
-            startEnrollmentFlow();
+            // Permissions granted, so continue with view
+            verifyUser();
         }
     }
 
@@ -133,16 +100,16 @@ public class VoiceEnrollment extends AppCompatActivity {
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
-            Log.d(TAG, "Hardware Permissions not granted");
+            Log.d(TAG,"Hardware Permissions not granted");
             exitViewWithMessage("assistant-failure", "Hardware Permissions not granted");
         } else {
             // Permissions granted, so continue with view
-            startEnrollmentFlow();
+            verifyUser();
         }
     }
 
     private void exitViewWithMessage(String action, String message) {
-        mContinueEnrolling = false;
+        mContinueVerifying = false;
         stopRecording();
         timingHandler.removeCallbacksAndMessages(null);
         Intent intent = new Intent(action);
@@ -153,18 +120,18 @@ public class VoiceEnrollment extends AppCompatActivity {
             Log.d(TAG,"JSON Exception : " + e.getMessage());
         }
         intent.putExtra("Response", json.toString());
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(mContext).sendBroadcast(intent);
         finish();
         overridePendingTransition(0, 0);
     }
 
     private void exitViewWithJSON(String action, JSONObject json) {
-        mContinueEnrolling = false;
+        mContinueVerifying = false;
         stopRecording();
         timingHandler.removeCallbacksAndMessages(null);
         Intent intent = new Intent(action);
         intent.putExtra("Response", json.toString());
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(mContext).sendBroadcast(intent);
         finish();
         overridePendingTransition(0, 0);
     }
@@ -177,13 +144,14 @@ public class VoiceEnrollment extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        // Confirm permissions and start enrollment flow
         requestHardwarePermissions();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if(mContinueEnrolling) {
+        if(mContinueVerifying) {
             exitViewWithMessage("assistant-failure", "User Canceled");
         }
     }
@@ -198,17 +166,20 @@ public class VoiceEnrollment extends AppCompatActivity {
             mMediaRecorder.reset();
             mMediaRecorder.release();
             mMediaRecorder = null;
+            displayWaveform = false;
         }
     }
 
-    private void failEnrollment(final JSONObject response) {
+    private void failVerification(final JSONObject response) {
         mOverlay.setProgressCircleColor(getResources().getColor(R.color.failure));
-        mOverlay.updateDisplayText(getString(R.string.ENROLL_FAIL));
+        mOverlay.updateDisplayText(getString(R.string.VERIFY_FAIL));
 
+        // Wait for ~1.5 seconds
         timingHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 try {
+                    // Report error to user
                     if (response.getString("responseCode").equals("PDNM")) {
                         mOverlay.updateDisplayText(getString((getResources().getIdentifier(response.
                                 getString("responseCode"), "string", getPackageName())), mPhrase));
@@ -217,15 +188,23 @@ public class VoiceEnrollment extends AppCompatActivity {
                                 getString("responseCode"), "string", getPackageName()))));
                     }
                 } catch (JSONException e) {
-                    Log.d(TAG, "JSON exception : " + e.toString());
+                    Log.d(TAG,"JSON exception : " + e.toString());
                 }
+                // Wait for ~4.5 seconds
                 timingHandler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        mFailedAttempts++;
+                        try {
+                            if (response.getString("responseCode").equals("PNTE")) {
+                                exitViewWithJSON("assistant-failure", response);
+                            }
+                        } catch (JSONException e) {
+                            Log.d(TAG,"JSON exception : " + e.toString());
+                        }
 
+                        mFailedAttempts++;
                         // User failed too many times
-                        if (mFailedAttempts > mMaxFailedAttempts) {
+                        if (mFailedAttempts >= mMaxFailedAttempts) {
                             mOverlay.updateDisplayText(getString(R.string.TOO_MANY_ATTEMPTS));
                             // Wait for ~2 seconds then exit
                             timingHandler.postDelayed(new Runnable() {
@@ -234,7 +213,7 @@ public class VoiceEnrollment extends AppCompatActivity {
                                     exitViewWithJSON("assistant-failure", response);
                                 }
                             }, 2000);
-                        } else if (mContinueEnrolling) {
+                        } else if (mContinueVerifying) {
                             // Try again
                             recordVoice();
                         }
@@ -258,9 +237,11 @@ public class VoiceEnrollment extends AppCompatActivity {
         return System.currentTimeMillis() - currentTime;
     }
 
+    // Verify after recording voice
     private void recordVoice() {
-        if (mContinueEnrolling) {
-            mOverlay.updateDisplayText(getString(getResources().getIdentifier("ENROLL_" + (mEnrollmentCount + 1) + "_PHRASE", "string", getPackageName()), mPhrase));
+        if (mContinueVerifying) {
+
+            mOverlay.updateDisplayText(getString(R.string.SAY_PASSPHRASE, mPhrase));
             try {
                 // Create file for audio
                 final File audioFile = Utils.getOutputMediaFile(".wav");
@@ -270,7 +251,6 @@ public class VoiceEnrollment extends AppCompatActivity {
 
                 // Setup device and capture Audio
                 mMediaRecorder = new MediaRecorder();
-                assert audioFile != null;
                 Utils.startMediaRecorder(mMediaRecorder, audioFile);
 
                 // Start displaying waveform
@@ -296,50 +276,36 @@ public class VoiceEnrollment extends AppCompatActivity {
                         // Stop waveform
                         displayWaveform = false;
 
-                        if (mContinueEnrolling) {
+                        if (mContinueVerifying) {
                             stopRecording();
 
                             // Reset sine wave
                             mOverlay.setWaveformMaxAmplitude(1);
 
                             mOverlay.updateDisplayText(getString(R.string.WAIT));
-                            mBiometricAssistant.createVoiceEnrollment(mUserId, mContentLanguage, mPhrase, audioFile, new JsonHttpResponseHandler() {
+                            mBiometricAssistant.voiceVerification(mUserId, mContentLanguage, mPhrase, audioFile, new JsonHttpResponseHandler() {
                                 @Override
                                 public void onSuccess(int statusCode, Header[] headers, final JSONObject response) {
                                     try {
                                         if (response.getString("responseCode").equals("SUCC")) {
                                             mOverlay.setProgressCircleColor(getResources().getColor(R.color.success));
-                                            mOverlay.updateDisplayText(getString(R.string.ENROLL_SUCCESS));
-                                            // Wait for ~2 seconds
+                                            mOverlay.updateDisplayTextAndLock(getString(R.string.VERIFY_SUCCESS));
+
+                                            // Wait for ~2 seconds then exit
                                             timingHandler.postDelayed(new Runnable() {
                                                 @Override
                                                 public void run() {
                                                     audioFile.deleteOnExit();
-                                                    mEnrollmentCount++;
-
-                                                    if (mEnrollmentCount == mNeededEnrollments) {
-                                                        mOverlay.updateDisplayText(getString(R.string.ALL_ENROLL_SUCCESS));
-                                                        // Wait for ~2.5 seconds
-                                                        timingHandler.postDelayed(new Runnable() {
-                                                            @Override
-                                                            public void run() {
-                                                                exitViewWithJSON("assistant-success", response);
-                                                            }
-                                                        }, 2500);
-                                                    } else {
-                                                        // Continue Enrolling
-                                                        recordVoice();
-                                                    }
+                                                    exitViewWithJSON("assistant-success", response);
                                                 }
                                             }, 2000);
-
                                             // Fail
                                         } else {
                                             audioFile.deleteOnExit();
-                                            failEnrollment(response);
+                                            failVerification(response);
                                         }
                                     } catch (JSONException e) {
-                                        Log.d(TAG, "JSON exception : " + e.toString());
+                                        Log.d(TAG, "JSON Exception: " + e.getMessage());
                                     }
                                 }
 
@@ -349,7 +315,7 @@ public class VoiceEnrollment extends AppCompatActivity {
                                         Log.d(TAG, "JSONResult : " + errorResponse.toString());
 
                                         audioFile.deleteOnExit();
-                                        failEnrollment(errorResponse);
+                                        failVerification(errorResponse);
                                     } else {
                                         Log.e(TAG, "No response from server");
                                         mOverlay.updateDisplayTextAndLock(getString(R.string.CHECK_INTERNET));
@@ -366,10 +332,82 @@ public class VoiceEnrollment extends AppCompatActivity {
                         }
                     }
                 }, 4800);
+
             } catch (Exception ex) {
                 Log.d(TAG, "Recording Error: " + ex.getMessage());
                 exitViewWithMessage("assistant-failure", "Recording Error");
             }
         }
+    }
+
+
+
+    private void verifyUser() {
+        mContinueVerifying = true;
+        // Check enrollments then verify
+        mBiometricAssistant.getAllVoiceEnrollments(mUserId, new JsonHttpResponseHandler() {
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, final JSONObject response) {
+                try {
+                    // Check If enough enrollments, otherwise return to previous activity
+                    if(response.getInt("count") < mNeededEnrollments) {
+                        mOverlay.updateDisplayText(getString(R.string.NOT_ENOUGH_ENROLLMENTS));
+                        // Wait for ~2.5 seconds
+                        timingHandler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                exitViewWithMessage("assistant-failure", "Not enough enrollments");
+                            }
+                        }, 2500);
+                    } else {
+                        try {
+                            // Wait for .5 seconds to read message
+                            timingHandler.postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    // Record Voice then verify
+                                    recordVoice();
+                                }
+                            }, 500);
+                        } catch (Exception e) {
+                            Log.d(TAG,"MediaRecorder exception : " + e.getMessage());
+                            exitViewWithMessage("assistant-failure", "MediaRecorder exception");
+                        }
+                    }
+                } catch (JSONException e) {
+                    Log.d(TAG,"JSON userId error: " + e.getMessage());
+                    exitViewWithMessage("assistant-failure", "JSON userId error");
+                }
+            }
+            @Override
+            public void onFailure(int statusCode, Header[] headers, Throwable throwable, final JSONObject errorResponse){
+                if (errorResponse != null) {
+                    try {
+                        // Report error to user
+                        mOverlay.updateDisplayText(getString((getResources().getIdentifier(errorResponse.
+                                getString("responseCode"), "string", getPackageName()))));
+                    } catch (JSONException e) {
+                        Log.d(TAG,"JSON exception : " + e.toString());
+                    }
+                    // Wait for 2.0 seconds
+                    timingHandler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            exitViewWithJSON("assistant-failure", errorResponse);
+                        }
+                    }, 2000);
+                } else {
+                    Log.e(TAG, "No response from server");
+                    mOverlay.updateDisplayTextAndLock(getString(R.string.CHECK_INTERNET));
+                    // Wait for 2.0 seconds
+                    timingHandler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            exitViewWithMessage("assistant-failure", "No response from server");
+                        }
+                    }, 2000);
+                }
+            }
+        });
     }
 }
