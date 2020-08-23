@@ -19,10 +19,13 @@ import android.view.MenuItem;
 import android.view.View;
 import android.webkit.MimeTypeMap;
 import android.widget.GridView;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
@@ -35,39 +38,35 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
-    private BiometricAssistant mBiometricAssistant;
-    private final String phrase = "Never forget tomorrow is a new day";
-    private final String userId = "usr_5abcb05344d141e398f1489b159d5ae5";
-    private final String contentLanguage = "en-US";
-    private ArrayList<Photo> _mygallery;
-    private GridView _gridview;
-    private GridviewAdapter gridviewAdapter;
-    private static final int RESULT_CODE_PICKER_IMAGES = 9000;
-    int PICK_IMAGE_MULTIPLE = 1;
-    String imageEncoded;
-    List<String> imagesEncodedList;
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
-    private static String[] PERMISSIONS_STORAGE = {
+    private static final String[] PERMISSIONS_STORAGE = {
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
+
+    private final String phrase = "Never forget tomorrow is a new day";
+    private final String userId = "usr_5abcb05344d141e398f1489b159d5ae5";
+    private final String contentLanguage = "en-US";
+    int PICK_IMAGE_MULTIPLE = 1;
+
+    private BiometricAssistant mBiometricAssistant;
+    private RecyclerView mRecyclerView;
+    private ImageAdapter mImageAdapter;
+    private ProgressBar mProgressBar;
+    private ProgressBar mUploadBar;
+    String imageEncoded;
+    List<String> imagesEncodedList;
+
 
     private StorageReference mStorageRef;
     private DatabaseReference mDatabaseRef;
     private StorageTask mUploadTask;
     ArrayList<Upload> mUploads;
-    /**
-     * Checks if the app has permission to write to device storage
-     * <p>
-     * If the app does not has permission then the user will be prompted to grant permissions
-     *
-     * @param activity
-     */
+
     public static void verifyStoragePermissions(Activity activity) {
         // Check if we have write permission
         int permission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
@@ -82,24 +81,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        Log.d("MyString", "Haideptrai");
-        verifyStoragePermissions(this);
-
-        initComponent();
-        populateGridView();
-
-//        mBiometricAssistant = new BiometricAssistant("key_186c7a4a0d0f42e3a6adc06e61339d09", "tok_a4d34a9a28f44841bf083dfd6acbc2a0");
-    }
-
     private void initComponent() {
         mUploads = new ArrayList<>();
         mStorageRef = FirebaseStorage.getInstance().getReference( userId + "/uploads");
         mDatabaseRef = FirebaseDatabase.getInstance().getReference(userId + "/uploads");
-        _gridview = findViewById(R.id.gridview);
+        mRecyclerView = findViewById(R.id.recycler_view);
+        mRecyclerView.setHasFixedSize(true);
+        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        mProgressBar = findViewById(R.id.progress_circle);
+        mUploadBar = findViewById(R.id.progress_upload);
     }
 
     private void populateGridView() {
@@ -111,15 +101,31 @@ public class MainActivity extends AppCompatActivity {
                     Upload upload = postSnapshot.getValue(Upload.class);
                     mUploads.add(upload);
                 }
-                gridviewAdapter = new GridviewAdapter(MainActivity.this, R.layout.gridview_item, mUploads);
-                _gridview.setAdapter(gridviewAdapter);
+                mImageAdapter = new ImageAdapter(MainActivity.this, mUploads);
+                mRecyclerView.setAdapter(mImageAdapter);
+
+                mProgressBar.setVisibility(View.INVISIBLE);
             }
 
             @Override
             public void onCancelled(@NonNull  DatabaseError error) {
                 Toast.makeText(MainActivity.this, error.getMessage(), Toast.LENGTH_LONG);
+                mProgressBar.setVisibility(View.INVISIBLE);
             }
         });
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        verifyStoragePermissions(this);
+
+        initComponent();
+        populateGridView();
+
+//        mBiometricAssistant = new BiometricAssistant("key_186c7a4a0d0f42e3a6adc06e61339d09", "tok_a4d34a9a28f44841bf083dfd6acbc2a0");
     }
 
     @Override
@@ -218,22 +224,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void uploadImageToFirebase(ArrayList<Photo> result) {
+        mProgressBar.setVisibility(View.VISIBLE);
         for (final Photo photo : result) {
             final String name = System.currentTimeMillis() + '.' + getFileExtension(photo.get_uri());
             Log.d(TAG, "Uploading " + name);
+            mUploadBar.setVisibility(View.VISIBLE);
             StorageReference fileReference = mStorageRef.child(name);
             mUploadTask = fileReference.putFile(photo.get_uri())
                     .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
                         @Override
                         public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                            Log.d(TAG, "Success");
-                            Handler handler = new Handler();
-                            handler.postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-
-                                }
-                            }, 1000);
 //                            Toast.makeText(MainActivity.this, "Upload complete", Toast.LENGTH_LONG).show();
                             final String uploadId = mDatabaseRef.push().getKey();
                             final Task<Uri> task = taskSnapshot.getMetadata().getReference().getDownloadUrl();
@@ -252,6 +252,7 @@ public class MainActivity extends AppCompatActivity {
                     .addOnFailureListener(new OnFailureListener() {
                         @Override
                         public void onFailure(@NonNull Exception e) {
+                            mUploadBar.setProgress(0);
                             Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
                         }
                     }).

@@ -51,7 +51,6 @@ public class VoiceEnrollment extends AppCompatActivity {
 
         setContentView(R.layout.activity_voice_enrollment);
 
-        Log.d(TAG, "Call here");
         loadData();
 
         // Hide action bar
