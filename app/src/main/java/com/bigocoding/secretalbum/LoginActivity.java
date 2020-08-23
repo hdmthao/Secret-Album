@@ -1,5 +1,6 @@
 package com.bigocoding.secretalbum;
 
+import android.widget.Button;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
@@ -10,8 +11,11 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 public class LoginActivity extends AppCompatActivity {
+    private static final String TAG = LoginActivity.class.getSimpleName();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,6 +42,8 @@ public class LoginActivity extends AppCompatActivity {
 
         ImageView voice = (ImageView) findViewById(R.id.imgview_voice);
         ImageView face = (ImageView) findViewById(R.id.imgview_face);
+        Button btnSignUp = (Button) findViewById(R.id.button_signup);
+
         voice.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -52,6 +58,16 @@ public class LoginActivity extends AppCompatActivity {
 
             }
         });
+        btnSignUp.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                FirebaseDatabase database = FirebaseDatabase.getInstance();
+                DatabaseReference myRef = database.getReference("message");
+
+                myRef.setValue("Hello, World!");
+                Log.d(TAG, "CALL");
+            }
+        });
     }
 
     public void signin_button(View view) {
@@ -62,7 +78,6 @@ public class LoginActivity extends AppCompatActivity {
             startActivity(intent);
         } else
             Toast.makeText(LoginActivity.this, "Fail", Toast.LENGTH_SHORT).show();
-
     }
 
 

@@ -301,4 +301,11 @@
     <color name="md_blue_grey_700">#455A64</color>
     <color name="md_blue_grey_800">#37474F</color>
     <color name="md_blue_grey_900">#263238</color>
+
+    <color name="success">#379c15</color>
+    <color name="failure">#d70b23</color>
+    <color name="waveform">#cea017</color>
+    <color name="portraitBackground">#FFFFFF</color>
+    <color name="progressCircle">#cea017</color>
+    <color name="instructionalText">#000000</color>
 </resources>

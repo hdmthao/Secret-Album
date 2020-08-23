@@ -11,6 +11,7 @@ import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import com.squareup.picasso.Picasso;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -18,8 +19,8 @@ import java.util.ArrayList;
 public class GridviewAdapter extends ArrayAdapter {
     private Context _context ;
     private int _layoutid ;
-    private ArrayList<Photo> _myGallery ;
-    public GridviewAdapter(@NonNull Context context, int resource, ArrayList<Photo> objects) {
+    private ArrayList<Upload> _myGallery ;
+    public GridviewAdapter(@NonNull Context context, int resource, ArrayList<Upload> objects) {
         super(context, resource);
         this._context = context  ;
         this._layoutid = resource  ;
@@ -34,21 +35,18 @@ public class GridviewAdapter extends ArrayAdapter {
     @NonNull
     @Override
     public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-//        return super.getView(position, convertView, parent);
+        Upload uploadCurrent = _myGallery.get(position);
         if (convertView == null){
             LayoutInflater inflater = LayoutInflater.from(_context) ;
             convertView = inflater.inflate(_layoutid, null);
         }
         ImageView imageView = convertView.findViewById(R.id.gridviewitem);
-        Photo item = _myGallery.get(position);
-        Bitmap bmp = null;
-        try {
-            bmp = MediaStore.Images.Media.getBitmap(_context.getContentResolver(),
-                    item.get_uri());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        imageView.setImageBitmap(bmp);
+        Picasso.with(_context)
+                .load(uploadCurrent.getImageUrl())
+                .placeholder(R.mipmap.ic_launcher)
+                .fit()
+                .centerCrop()
+                .into(imageView);
         return convertView;
 
     }
