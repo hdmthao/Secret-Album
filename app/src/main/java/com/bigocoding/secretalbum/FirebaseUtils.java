@@ -1,2 +1,4 @@
-package com.bigocoding.secretalbum;public class FirebaseUtils {
+package com.bigocoding.secretalbum;
+
+public class FirebaseUtils {
 }
