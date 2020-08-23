@@ -3,6 +3,7 @@ package com.bigocoding.secretalbum;
 import android.widget.Button;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -19,6 +20,19 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Boolean isFirstRun = getSharedPreferences("PREFERENCE", MODE_PRIVATE)
+                .getBoolean("isFirstRun", true);
+
+        if (isFirstRun) {
+            //show start activity
+
+            startActivity(new Intent(LoginActivity.this, SignupActivity.class));
+            getSharedPreferences("PREFERENCE", MODE_PRIVATE).edit()
+                    .putBoolean("isFirstRun", false).commit();
+        }
+
+
+
         setContentView(R.layout.login_layout);
         Log.d("MyString", "123");
         OnclickButtonListener();
@@ -65,5 +79,7 @@ public class LoginActivity extends AppCompatActivity {
         } else
             Toast.makeText(LoginActivity.this, "Fail", Toast.LENGTH_SHORT).show();
     }
+
+
 
 }
