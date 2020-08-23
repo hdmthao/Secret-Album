@@ -308,4 +308,7 @@
     <color name="portraitBackground">#FFFFFF</color>
     <color name="progressCircle">#cea017</color>
     <color name="instructionalText">#000000</color>
+    <color name="pendingLivenessSuccess">#94da7d</color>
+    <color name="portraitBackgroundLowLight">#FFFFFF</color>
+    <color name="instructionalTextLowLight">#000000</color>
 </resources>

@@ -30,6 +30,25 @@
     <string name="CHECK_CODE">Please check your code and try again.</string>
     <string name="WAIT">Please wait..</string>
 
+    <string name="SAY_PASSPHRASE">Please say \"%1$s\"</string>
+    <string name="INCORRECT_PASSPHRASE">Incorrect passphrase. Please say \"%1$s\"</string>
+    <string name="LOOK_INTO_CAM">Please look into the camera</string>
+    <string name="TOO_MANY_FACES">Found too many faces. Make sure only your face is visible.</string>
+    <string name="NOT_ENOUGH_ENROLLMENTS">You do not have enough enrollments. Please enroll and try again.</string>
+    <string name="VERIFY_SUCCESS">You have been successfully verified!</string>
+    <string name="VERIFY_FAIL">Verification unsuccessful</string>
+    <string name="IDENTIFY_SUCCESS">You have been successfully identified!</string>
+    <string name="IDENTIFY_FAIL">Identification unsuccessful</string>
+    <string name="BLINK_1_TIME">Please blink 1 more time</string>
+    <string name="BLINK_2_TIME">Please blink 2 times</string>
+    <string name="TURN_RIGHT">Please turn your face right, then back forward.</string>
+    <string name="TURN_LEFT">Please turn your face left, then back forward</string>
+    <string name="SMILE">Please smile</string>
+    <string name="FAILED_LIVENESS">Failed liveness detection</string>
+    <string name="FAILED_LIVENESS_CHALLENGE">Failed liveness challenge, please try again.</string>
+    <string name="FAILED_PRECHECK">Please wait to be prompted before taking action.</string>
+    <string name="MOVE_CLOSER">Please move closer to the camera</string>
+    <string name="GRANT_WRITE_PERMISSON">"Grant permission for screen brightness"</string>
     <string name="FNFD">Sorry, we couldn\'t quite see your face. Please try again.</string>
     <string name="DDNE">Sorry, something went wrong.Please try again.</string>
     <string name="FAIL">Failed to verify due to low confidence. Please try again.</string>
@@ -61,4 +80,7 @@
     <string name="ACLR">Sorry, something went wrong.\nPlease try again, or contact app developer with error code: ACLR.</string>
 
     <string name="GERR">Sorry, something went wrong.\nPlease try again.</string>
+    <string name="MUST_REGISTER_BIOMETRIC">Sorry, you must register your face and voice bimoetrics</string>
+    <string name="MUST_REGISTER_VOICE">Sorry, you must register your voice bimoetrics too</string>
+    <string name="MUST_REGISTER_FACE">Sorry, you must register your face too.</string>
 </resources>

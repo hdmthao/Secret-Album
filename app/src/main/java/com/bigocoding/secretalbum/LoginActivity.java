@@ -1,6 +1,8 @@
 package com.bigocoding.secretalbum;
 
 import android.widget.Button;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
@@ -11,61 +13,85 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.*;
+import com.loopj.android.http.JsonHttpResponseHandler;
+import cz.msebera.android.httpclient.Header;
+import org.json.JSONObject;
 
 public class LoginActivity extends AppCompatActivity {
     private static final String TAG = LoginActivity.class.getSimpleName();
+    private static final String API_KEY = "key_186c7a4a0d0f42e3a6adc06e61339d09";
+    private static final String API_TOKEN = "tok_a4d34a9a28f44841bf083dfd6acbc2a0";
+    private final String phrase = "Never forget tomorrow is a new day";
+    private final String userId = "usr_5abcb05344d141e398f1489b159d5ae5";
+    private final String userId2 = "usr_d603ab00414b414f90a1491fa07f7c93";
+    private final String contentLanguage = "en-US";
+    private BiometricAssistant mBiometricAssistant;
+    private DatabaseReference mDatabaseRef;
+    private String password;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Boolean isFirstRun = getSharedPreferences("PREFERENCE", MODE_PRIVATE)
+        boolean isFirstRun = getSharedPreferences("PREFERENCE", MODE_PRIVATE)
                 .getBoolean("isFirstRun", true);
 
         if (isFirstRun) {
-            //show start activity
-
-            startActivity(new Intent(LoginActivity.this, SignupActivity.class));
-            getSharedPreferences("PREFERENCE", MODE_PRIVATE).edit()
-                    .putBoolean("isFirstRun", false).commit();
+            startSignUp();
         }
 
 
 
         setContentView(R.layout.login_layout);
-        Log.d("MyString", "123");
         OnclickButtonListener();
+
+        mBiometricAssistant = new BiometricAssistant(API_KEY, API_TOKEN);
     }
+
+    private void startSignUp() {
+        //show start activity
+        startActivity(new Intent(LoginActivity.this, SignupActivity.class));
+        getSharedPreferences("PREFERENCE", MODE_PRIVATE).edit()
+                .putBoolean("isFirstRun", false)
+                .commit();
+    }
+
 
     public void OnclickButtonListener() {
 
         ImageView voice = (ImageView) findViewById(R.id.imgview_voice);
         ImageView face = (ImageView) findViewById(R.id.imgview_face);
-        Button btnSignUp = (Button) findViewById(R.id.button_signup);
 
         voice.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Toast.makeText(LoginActivity.this, "Voice Click", Toast.LENGTH_SHORT).show();
+                mBiometricAssistant.encapsulatedVoiceVerification(LoginActivity.this, userId, contentLanguage, phrase, new JsonHttpResponseHandler() {
+                    @Override
+                    public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+                        goToGallery();
+                    }
 
+                    @Override
+                    public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
+                        Toast.makeText(LoginActivity.this, "Fail", Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
         });
         face.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Toast.makeText(LoginActivity.this, "Face Click", Toast.LENGTH_SHORT).show();
+                mBiometricAssistant.encapsulatedFaceVerification(LoginActivity.this, userId2, false, false, 0, 2, new JsonHttpResponseHandler() {
+                    @Override
+                    public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+                        goToGallery();
+                    }
 
-            }
-        });
-        btnSignUp.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                FirebaseDatabase database = FirebaseDatabase.getInstance();
-                DatabaseReference myRef = database.getReference("message");
-
-                myRef.setValue("Hello, World!");
-                Log.d(TAG, "CALL");
+                    @Override
+                    public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
+                        Toast.makeText(LoginActivity.this, "Fail", Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
         });
     }
@@ -73,13 +99,14 @@ public class LoginActivity extends AppCompatActivity {
     public void signin_button(View view) {
         EditText login_password = (EditText) findViewById(R.id.et_password);
         Log.d("MyString", login_password.getText().toString());
-        if (login_password.getText().toString().equals("111111")) {
-            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-            startActivity(intent);
+        if (login_password.getText().toString().equals("122333")) {
+            goToGallery();
         } else
             Toast.makeText(LoginActivity.this, "Fail", Toast.LENGTH_SHORT).show();
     }
 
-
-
+    void goToGallery() {
+        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+        startActivity(intent);
+    }
 }
