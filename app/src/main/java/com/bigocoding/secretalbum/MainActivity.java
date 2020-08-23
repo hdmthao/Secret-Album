@@ -8,8 +8,10 @@ import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -36,6 +38,7 @@ import cz.msebera.android.httpclient.Header;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -214,6 +217,7 @@ public class MainActivity extends AppCompatActivity {
                     .show();
         }
         uploadImageToFirebase(result);
+
         super.onActivityResult(requestCode, resultCode, data);
     }
 
