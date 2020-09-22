@@ -16,6 +16,8 @@ import android.widget.Toast;
 import com.google.firebase.database.*;
 import com.loopj.android.http.JsonHttpResponseHandler;
 import cz.msebera.android.httpclient.Header;
+
+import org.json.JSONException;
 import org.json.JSONObject;
 
 public class LoginActivity extends AppCompatActivity {
@@ -68,7 +70,7 @@ public class LoginActivity extends AppCompatActivity {
                 mBiometricAssistant.encapsulatedVoiceVerification(LoginActivity.this, userId, contentLanguage, phrase, new JsonHttpResponseHandler() {
                     @Override
                     public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                        goToGallery();
+                        goToGallery("none");
                     }
 
                     @Override
@@ -84,7 +86,11 @@ public class LoginActivity extends AppCompatActivity {
                 mBiometricAssistant.encapsulatedFaceVerification(LoginActivity.this, userId2, false, false, 0, 2, new JsonHttpResponseHandler() {
                     @Override
                     public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                        goToGallery();
+                        try {
+                            goToGallery(response.getString("image_url"));
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
                     }
 
                     @Override
@@ -100,13 +106,15 @@ public class LoginActivity extends AppCompatActivity {
         EditText login_password = (EditText) findViewById(R.id.et_password);
         Log.d("MyString", login_password.getText().toString());
         if (login_password.getText().toString().equals("122333")) {
-            goToGallery();
+            goToGallery("none");
         } else
             Toast.makeText(LoginActivity.this, "Fail", Toast.LENGTH_SHORT).show();
     }
 
-    void goToGallery() {
+    void goToGallery(String image_url) {
         Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+        intent.putExtra("url", image_url);
+
         startActivity(intent);
     }
 }

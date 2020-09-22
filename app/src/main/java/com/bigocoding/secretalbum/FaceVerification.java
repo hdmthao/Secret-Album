@@ -440,6 +440,12 @@ public class FaceVerification extends AppCompatActivity implements SensorEventLi
                         timingHandler.postDelayed(new Runnable() {
                             @Override
                             public void run() {
+                                try {
+                                    response.put("image_url", mPictureFile.getPath());
+                                    Log.d("debug2", response.toString());
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
                                 mPictureFile.deleteOnExit();
                                 exitViewWithJSON("assistant-success", response);
                             }

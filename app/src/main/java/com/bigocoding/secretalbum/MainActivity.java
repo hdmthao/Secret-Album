@@ -5,10 +5,15 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.MediaStore;
@@ -19,6 +24,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.webkit.MimeTypeMap;
 import android.widget.GridView;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -32,10 +38,23 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.*;
 import com.google.firebase.storage.*;
 import com.loopj.android.http.JsonHttpResponseHandler;
+import com.microsoft.projectoxford.face.FaceServiceClient;
+import com.microsoft.projectoxford.face.FaceServiceRestClient;
+import com.microsoft.projectoxford.face.contract.Face;
+import com.pixelcan.emotionanalysisapi.EmotionRestClient;
+import com.pixelcan.emotionanalysisapi.ResponseCallback;
+import com.pixelcan.emotionanalysisapi.models.FaceAnalysis;
+
 import cz.msebera.android.httpclient.Header;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -50,12 +69,13 @@ public class MainActivity extends AppCompatActivity {
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
     int PICK_IMAGE_MULTIPLE = 1;
-
-
+    private FaceServiceClient faceServiceClient = new FaceServiceRestClient("https://eastus.api.cognitive.microsoft.com/face/v1.0/", "c3964bae02b64e34810a5ba1a2df4207");
     private RecyclerView mRecyclerView;
     private ImageAdapter mImageAdapter;
     private ProgressBar mProgressBar;
     private ProgressBar mUploadBar;
+    private JSONObject jsonObject;
+    private Context context;
     String imageEncoded;
     List<String> imagesEncodedList;
 
@@ -88,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         mProgressBar = findViewById(R.id.progress_circle);
         mUploadBar = findViewById(R.id.progress_upload);
+        EmotionRestClient.init(this, "thaohai");
     }
 
     private void populateGridView() {
@@ -120,8 +141,90 @@ public class MainActivity extends AppCompatActivity {
 
         verifyStoragePermissions(this);
 
+        context = this;
+
         initComponent();
         populateGridView();
+
+        predictEmotion();
+    }
+
+    void predictEmotion() {
+        ImageView imgeView = findViewById(R.id.temp);
+        Intent intent = this.getIntent();
+        String face_url = intent.getStringExtra("url");
+        Bitmap bitmap = null;
+        bitmap = BitmapFactory.decodeFile(face_url);
+        Matrix matrix = new Matrix();
+        matrix.postRotate(-90);
+        Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap,bitmap.getWidth(), bitmap.getHeight(), true);
+
+        Bitmap rotatedBitmap = Bitmap.createBitmap(scaledBitmap, 0, 0, scaledBitmap.getWidth(), scaledBitmap.getHeight(), matrix, true);
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
+        ByteArrayInputStream inputStream =
+                new ByteArrayInputStream(outputStream.toByteArray());
+
+        @SuppressLint("StaticFieldLeak") AsyncTask<InputStream, String, Face[]> detectTask =
+
+                new AsyncTask<InputStream, String, Face[]>() {
+                    String exceptionMessage = "";
+
+                    @Override
+                    protected Face[] doInBackground(InputStream... params) {
+                        try {
+                            Face[] result = faceServiceClient.detect(
+                                    params[0],
+                                    true,         // returnFaceId
+                                    false,        // returnFaceLandmarks
+                                    // returnFaceAttributes:
+                                    new FaceServiceClient.FaceAttributeType[] {
+                                            FaceServiceClient.FaceAttributeType.Emotion,
+                                            FaceServiceClient.FaceAttributeType.Gender }
+                            );
+                            Log.d(TAG, String.valueOf(result.length));
+                            for (int i=0;i<result.length;i++) {
+                                jsonObject.put("happiness" , result[i].faceAttributes.emotion.happiness);
+                                jsonObject.put("sadness" , result[i].faceAttributes.emotion.sadness);
+                                jsonObject.put("surprise" , result[i].faceAttributes.emotion.surprise);
+                                jsonObject.put("neutral"  , result[i].faceAttributes.emotion.neutral);
+                                jsonObject.put("anger" , result[i].faceAttributes.emotion.anger);
+                                jsonObject.put("contempt" , result[i].faceAttributes.emotion.contempt);
+                                jsonObject.put("disgust" , result[i].faceAttributes.emotion.disgust);
+                                jsonObject.put("fear" , result[i].faceAttributes.emotion.fear);
+                                Log.e(TAG, "doInBackground: "+jsonObject.toString()  );
+                            }
+                            Log.e("TAG", "doInBackground: "+"   "+result.length );
+
+                            return result;
+                        } catch (Exception e) {
+                            exceptionMessage = String.format(
+                                    "Detection failed: %s", e.getMessage());
+                            Log.d(TAG, exceptionMessage);
+                            return null;
+                        }
+                    }
+
+                    @Override
+                    protected void onPreExecute() {
+                    }
+
+                    @Override
+                    protected void onProgressUpdate(String... progress) {
+                    }
+
+                    @Override
+                    protected void onPostExecute(Face[] result) {
+                        Log.d(TAG, jsonObject.toString());
+                    }
+                };
+
+        detectTask.execute(inputStream);
+    }
+
+    private void detectAndFrame(String imageUrl) {
+
     }
 
     @Override
@@ -234,6 +337,8 @@ public class MainActivity extends AppCompatActivity {
                                     mDatabaseRef.child(uploadId).setValue(upload);
                                 }
                             });
+                            File finalFile = new File(getRealPathFromURI(imageUri));
+                            finalFile.delete();
 
                         }
                     })
@@ -250,6 +355,18 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
         }
+    }
+
+    public String getRealPathFromURI (Uri contentUri) {
+        String path = null;
+        String[] proj = { MediaStore.MediaColumns.DATA };
+        Cursor cursor = getContentResolver().query(contentUri, proj, null, null, null);
+        if (cursor.moveToFirst()) {
+            int column_index = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA);
+            path = cursor.getString(column_index);
+        }
+        cursor.close();
+        return path;
     }
 
     @SuppressLint("MissingSuperCall")
